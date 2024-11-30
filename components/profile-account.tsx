@@ -1,6 +1,6 @@
 'use client'
 
-import { SetStateAction, useState, useEffect, useRef } from 'react'
+import { SetStateAction, useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
@@ -39,6 +39,8 @@ import {
   CommandItem,
 } from '@/components/ui/command'
 import { toast } from 'sonner'
+import { SearchSuggestionTypedef } from '@/lib/typedef/search-suggestion-typedef'
+import { fetchSearchSuggestions } from '@/server/queries/fetch-search-suggestion'
 
 const formSchema = z.object({
   username: z
@@ -70,6 +72,11 @@ export function ProfileAccountUser() {
   const [error, setError] = useState('')
   const [formData, setFormData] = useState<ProfileFormValue | null>(null)
   const [isVerifying, setIsVerifying] = useState(false)
+  const [selectedUser, setSelectedUser] =
+    useState<SearchSuggestionTypedef | null>(null)
+  const [searchResults, setSearchResults] = useState<SearchSuggestionTypedef[]>(
+    [],
+  )
   const socketRef = useRef<WebSocket | null>(null)
 
   const form = useForm<ProfileFormValue>({
@@ -79,6 +86,26 @@ export function ProfileAccountUser() {
       newPassword: '',
     },
   })
+
+  useEffect(() => {
+    const fetchResults = async () => {
+      if (searchQuery.length < 2) {
+        setSearchResults([])
+        return
+      }
+
+      try {
+        const results = await fetchSearchSuggestions(searchQuery)
+        setSearchResults(results)
+      } catch (error) {
+        console.error('Error fetching search results:', error)
+        toast.error('Failed to fetch search results')
+      }
+    }
+
+    const timer = setTimeout(fetchResults, 150) // Reduced debounce time for more responsiveness
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
   useEffect(() => {
     if (username) {
@@ -130,6 +157,54 @@ export function ProfileAccountUser() {
     setFormData(data)
     setShowDialog(false)
     setShowFingerprintDialog(true)
+  }
+
+  const handleSearch = useCallback(async (query: string) => {
+    if (query.length < 2) {
+      setSearchResults([])
+      return
+    }
+
+    try {
+      const results = await fetchSearchSuggestions(query)
+      setSearchResults(results)
+    } catch (error) {
+      console.error('Error fetching search results:', error)
+      toast.error('Failed to fetch search results')
+    }
+  }, [])
+
+  // Add function to handle user selection
+  const handleUserSelect = useCallback((user: SearchSuggestionTypedef) => {
+    setSelectedUser(user)
+    setSearchResults([])
+  }, [])
+
+  const handleChangeAdmin = async () => {
+    if (!selectedUser || !staffInformation?.auth_id) return
+
+    try {
+      const response = await fetch('/api/users/change-admin', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          currentAuthId: staffInformation.auth_id,
+          newResidentId: selectedUser.id,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to change admin')
+      }
+
+      toast.success('Admin access successfully transferred')
+      router.push('/log-in')
+    } catch (error) {
+      console.error('Error changing admin:', error)
+      toast.error('Failed to change admin access')
+    }
   }
 
   useEffect(() => {
@@ -474,40 +549,65 @@ export function ProfileAccountUser() {
               Search and select a new admin user.
             </DialogDescription>
           </DialogHeader>
-          <Command className="overflow-hidden rounded-lg border border-gray-200 shadow-sm">
-            <CommandInput
+          <div className="relative">
+            <Input
+              type="search"
               placeholder="Search users..."
               value={searchQuery}
-              onValueChange={setSearchQuery}
-              className="px-4 py-3 text-sm focus:outline-none"
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full border-gray-300"
             />
-            <CommandEmpty className="py-6 text-center text-sm text-gray-500">
-              No users found.
-            </CommandEmpty>
-            <CommandGroup>
-              {filteredAvatars.map((suggestion) => (
-                <CommandItem
-                  key={suggestion.name}
-                  onSelect={() => handleAvatarSelect(suggestion.avatar)}
-                  className="flex cursor-pointer items-center space-x-3 px-4 py-3 transition-colors hover:bg-gray-50"
-                >
-                  <Avatar className="h-10 w-10 border border-gray-200">
-                    <AvatarImage
-                      src={suggestion.avatar}
-                      alt={suggestion.name}
-                      className="object-cover"
-                    />
-                    <AvatarFallback className="bg-gray-100 font-medium text-black">
-                      {suggestion.name[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm font-medium text-black">
-                    {suggestion.name}
-                  </span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </Command>
+            {searchQuery.length >= 2 && searchResults.length > 0 && (
+              <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                {searchResults.map((user) => (
+                  <div
+                    key={user.id}
+                    onClick={() => {
+                      setSelectedUser(user)
+                      setSearchQuery(user.name)
+                      setSearchResults([])
+                    }}
+                    className="flex cursor-pointer items-center space-x-3 px-4 py-3 hover:bg-gray-50"
+                  >
+                    <Avatar className="h-10 w-10 border border-gray-200">
+                      <AvatarImage
+                        src={user.image}
+                        alt={user.name}
+                        className="object-cover"
+                      />
+                      <AvatarFallback className="bg-gray-100 font-medium text-black">
+                        {user.name[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium text-black">
+                      {user.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {selectedUser && (
+            <div className="mt-4">
+              <p className="mb-2 text-sm text-gray-600">Selected User:</p>
+              <div className="flex items-center space-x-2 rounded-md border border-gray-200 p-3">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage
+                    src={selectedUser.image}
+                    alt={selectedUser.name}
+                  />
+                  <AvatarFallback>{selectedUser.name[0]}</AvatarFallback>
+                </Avatar>
+                <span className="text-sm font-medium">{selectedUser.name}</span>
+              </div>
+              <Button
+                onClick={handleChangeAdmin}
+                className="mt-4 w-full bg-black text-white hover:bg-gray-800"
+              >
+                Change Admin Access
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
