@@ -50,21 +50,22 @@ export default function DocumentPage() {
   const renderActivityItem = useCallback(
     (activity: queueTypedef, index: number) => (
       <Link
-              href={getDocumentLink(activity.document)}
-              key={activity.id}
-              className="flex items-center justify-between rounded-lg border border-gray-200 p-4 md:p-6 lg:p-8"
-            >
-
+        href={getDocumentLink(activity.document)}
+        key={activity.id}
+        className="flex items-center justify-between rounded-lg border border-gray-200 p-4 md:p-6 lg:p-8"
+      >
         <div>
           <p className="text-sm font-medium text-black">{activity.date}</p>
-          <p className="text-sm text-gray-600">{activity.name} has requested {activity.document} – Queue #{activity.id}</p>
+          <p className="text-sm text-gray-600">
+            {activity.name} has requested {activity.document} – Queue #
+            {activity.id}
+          </p>
         </div>
         <div className="flex items-center space-x-4">
           <p className="text-sm text-gray-600">{activity.label}</p>
         </div>
-   
       </Link>
-    ), 
+    ),
     [],
   )
 
@@ -121,9 +122,7 @@ export default function DocumentPage() {
             ))}
           {error && <p className="text-center text-red-500">{error}</p>}
           {!isLoading && activityLog.length > 0 && (
-            <p className="text-center text-gray-500">
-              See activity logs for detailed list.
-            </p>
+            <p className="text-center text-gray-500">No more activities</p>
           )}
           {!isLoading && activityLog.length === 0 && (
             <p className="text-center text-gray-500">No activities found.</p>

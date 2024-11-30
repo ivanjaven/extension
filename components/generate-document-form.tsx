@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Camera } from 'lucide-react'
@@ -6,6 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Fingerprint } from 'lucide-react'
+import { SearchDialog } from './search-dialog'
+import { SearchSuggestionTypedef } from '@/lib/typedef/search-suggestion-typedef'
+import { fetchUser } from '@/server/queries/fetch-user'
 
 interface Field {
   name: string
@@ -26,6 +29,14 @@ interface GenerateDocumentFormProps {
     purok: number
     imageBase64: string
   } | null
+  setIdentifiedUser: (
+    user: {
+      residentId: number
+      fullName: string
+      purok: number
+      imageBase64: string
+    } | null,
+  ) => void
   isLoading?: boolean
   document: string
 }
@@ -36,11 +47,13 @@ const GenerateDocumentForm: React.FC<GenerateDocumentFormProps> = ({
   onIdentify,
   isIdentifying,
   identifiedUser,
+  setIdentifiedUser,
   isLoading = false,
   document,
 }) => {
   const [formData, setFormData] = useState<Record<string, any>>({})
   const [documentImage, setDocumentImage] = useState<string>('')
+  const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false)
 
   useEffect(() => {
     const loadImage = async () => {
@@ -70,6 +83,19 @@ const GenerateDocumentForm: React.FC<GenerateDocumentFormProps> = ({
     }
   }, [identifiedUser])
 
+  // Add useEffect for the hotkey
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.shiftKey && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        setIsSearchDialogOpen(true)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [])
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target
     setFormData((prev) => ({
@@ -88,6 +114,37 @@ const GenerateDocumentForm: React.FC<GenerateDocumentFormProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     onSubmit(formData)
+  }
+
+  const handleUserSelect = async (suggestion: SearchSuggestionTypedef) => {
+    try {
+      const userData = await fetchUser(suggestion.id)
+      if (userData && userData[0]) {
+        const user = userData[0]
+        setFormData((prev) => ({
+          ...prev,
+          'Full Name': suggestion.name,
+          Price: formData['Price'] || '', // Preserve existing price if any
+          Purok: user.street_id,
+        }))
+
+        // If there's an imageBase64 field, update it
+        if (user.image_base64) {
+          const fakeIdentifiedUser = {
+            residentId: suggestion.id,
+            fullName: suggestion.name,
+            purok: Number(user.street_id),
+            imageBase64: user.image_base64,
+          }
+          // Update identifiedUser through props
+          if (identifiedUser !== fakeIdentifiedUser) {
+            setIdentifiedUser(fakeIdentifiedUser)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error)
+    }
   }
 
   if (isLoading) {
@@ -111,101 +168,109 @@ const GenerateDocumentForm: React.FC<GenerateDocumentFormProps> = ({
   }
 
   return (
-    <div className="flex">
-      <div className="flex w-1/2 items-center justify-center p-4">
-        <Image
-          src={documentImage}
-          alt="Document"
-          width={400}
-          height={600}
-          objectFit="contain"
-        />
-      </div>
-      <div className="w-1/2 p-4">
-        <div className="mb-6 flex justify-center">
-          <div className="relative h-32 w-32">
-            {identifiedUser?.imageBase64 ? (
-              <Image
-                src={identifiedUser.imageBase64}
-                alt="User"
-                layout="fill"
-                objectFit="cover"
-                className="rounded-full"
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center rounded-full bg-gray-200">
-                <Camera size={32} className="text-gray-400" />
-              </div>
-            )}
-          </div>
+    <>
+      <div className="flex">
+        <div className="flex w-1/2 items-center justify-center p-4">
+          <Image
+            src={documentImage}
+            alt="Document"
+            width={400}
+            height={600}
+            objectFit="contain"
+          />
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {fields.map((field) => (
-            <div key={field.name} className="flex flex-col">
-              <label
-                htmlFor={field.name}
-                className="opacity-700 mb-2 text-sm font-medium text-gray-700 dark:text-gray-800"
-              >
-                {field.label}
-              </label>
-              {field.type === 'checkbox' && field.options ? (
-                <div className="space-y-2">
-                  {field.options.map((option) => (
-                    <div key={option} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`${field.name}-${option}`}
-                        checked={formData[option] === '/'}
-                        onCheckedChange={(checked) =>
-                          handleCheckboxChange(option, checked as boolean)
-                        }
-                        disabled={!identifiedUser}
-                      />
-                      <label
-                        htmlFor={`${field.name}-${option}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        {option}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <Input
-                  id={field.name}
-                  name={field.name}
-                  placeholder={`Enter ${field.name}`}
-                  type={field.type}
-                  value={formData[field.name] || ''}
-                  onChange={handleChange}
-                  disabled={!field.editable || !identifiedUser}
-                  required
-                  className="mb-4"
+        <div className="w-1/2 p-4">
+          <div className="mb-6 flex justify-center">
+            <div className="relative h-32 w-32">
+              {identifiedUser?.imageBase64 ? (
+                <Image
+                  src={identifiedUser.imageBase64}
+                  alt="User"
+                  layout="fill"
+                  objectFit="cover"
+                  className="rounded-full"
                 />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center rounded-full bg-gray-200">
+                  <Camera size={32} className="text-gray-400" />
+                </div>
               )}
             </div>
-          ))}
-          <div className="mt-6 flex flex-row justify-center gap-6">
-            <Button
-              className="mt-12 rounded bg-black px-6 py-2 text-white transition-colors hover:bg-gray-800"
-              size="lg"
-              onClick={onIdentify}
-              disabled={isIdentifying}
-            >
-              <Fingerprint className="mr-2 h-6 w-6" />
-              {isIdentifying ? 'Identifying...' : 'Identify User'}
-            </Button>
-            <Button
-              size="lg"
-              className="mt-12 rounded bg-black px-6 py-2 text-white transition-colors hover:bg-gray-800"
-              disabled={!identifiedUser}
-            >
-              Generate Document
-            </Button>
           </div>
-        </form>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {fields.map((field) => (
+              <div key={field.name} className="flex flex-col">
+                <label
+                  htmlFor={field.name}
+                  className="opacity-700 mb-2 text-sm font-medium text-gray-700 dark:text-gray-800"
+                >
+                  {field.label}
+                </label>
+                {field.type === 'checkbox' && field.options ? (
+                  <div className="space-y-2">
+                    {field.options.map((option) => (
+                      <div key={option} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`${field.name}-${option}`}
+                          checked={formData[option] === '/'}
+                          onCheckedChange={(checked) =>
+                            handleCheckboxChange(option, checked as boolean)
+                          }
+                          disabled={!identifiedUser}
+                        />
+                        <label
+                          htmlFor={`${field.name}-${option}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          {option}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <Input
+                    id={field.name}
+                    name={field.name}
+                    placeholder={`Enter ${field.name}`}
+                    type={field.type}
+                    value={formData[field.name] || ''}
+                    onChange={handleChange}
+                    disabled={!field.editable || !identifiedUser}
+                    required
+                    className="mb-4"
+                  />
+                )}
+              </div>
+            ))}
+            <div className="mt-6 flex flex-row justify-center gap-6">
+              <Button
+                className="mt-12 rounded bg-black px-6 py-2 text-white transition-colors hover:bg-gray-800"
+                size="lg"
+                onClick={onIdentify}
+                disabled={isIdentifying}
+              >
+                <Fingerprint className="mr-2 h-6 w-6" />
+                {isIdentifying ? 'Identifying...' : 'Identify User'}
+              </Button>
+              <Button
+                size="lg"
+                className="mt-12 rounded bg-black px-6 py-2 text-white transition-colors hover:bg-gray-800"
+                disabled={!identifiedUser}
+              >
+                Generate Document
+              </Button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
+
+      <SearchDialog
+        isOpen={isSearchDialogOpen}
+        onClose={() => setIsSearchDialogOpen(false)}
+        onSelect={handleUserSelect}
+      />
+    </>
   )
 }
 

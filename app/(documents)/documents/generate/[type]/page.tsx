@@ -17,6 +17,13 @@ import { toast } from 'sonner'
 
 type DocumentType = keyof typeof DOCUMENT_CONFIG.document
 
+type IdentifiedUser = {
+  residentId: number
+  fullName: string
+  purok: number
+  imageBase64: string
+} | null
+
 export default function GenerateDocument() {
   const params = useParams()
   const type = params.type as string
@@ -251,6 +258,7 @@ export default function GenerateDocument() {
         onIdentify={handleIdentify}
         isIdentifying={isIdentifying}
         identifiedUser={identifiedUser}
+        setIdentifiedUser={setIdentifiedUser}
       />
       {isLoading && (
         <ProgressBar title={`Generating ${config.name}`} progress={progress} />
