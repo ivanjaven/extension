@@ -4,19 +4,21 @@ import { verifyToken } from './server/services/token-generator'
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
-  // Exclude /log-in page route from middleware
-  if (pathname === '/log-in') {
-    return NextResponse.next()
-  }
+  // List of paths that don't require authentication
+  const publicPaths = [
+    '/log-in',
+    '/api/auth/log-in',
+    '/api/auth/fingerprint-login',
+  ]
 
-  // Handle API route for /api/log-in
-  if (pathname === '/api/auth/log-in') {
-    return NextResponse.next() // Skip auth for log-in API
+  // Skip middleware for public paths
+  if (publicPaths.includes(pathname)) {
+    return NextResponse.next()
   }
 
   const token = request.cookies.get('token')?.value
 
-  console.log('Token from cookie:', token) // Debugging log
+  console.log('Token from cookie:', token)
 
   // Special handling for root path
   if (pathname === '/') {
@@ -28,28 +30,26 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!token) {
-    console.log('No token found, redirecting to login') // Debugging log
+    console.log('No token found, redirecting to login')
     return NextResponse.redirect(new URL('/log-in', request.url))
   }
 
-  console.log('trying to verify')
-  const decodedToken = verifyToken(token)
+  const decodedToken = await verifyToken(token)
   if (!decodedToken) {
-    console.log('Invalid token, redirecting to login') // Debugging log
+    console.log('Invalid token, redirecting to login')
     return NextResponse.redirect(new URL('/log-in', request.url))
   }
 
-  // If token is valid, allow the request to proceed
-  console.log('Returning after successful decoding')
   return NextResponse.next()
 }
 
-// Define the routes for which middleware should run
+// Update matcher to include fingerprint-login route
 export const config = {
   matcher: [
     '/log-in',
     '/api/auth/log-in',
+    '/api/auth/fingerprint-login',
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
-    '/api/((?!auth/log-in).*)',
+    '/api/((?!auth/log-in|auth/fingerprint-login).*)',
   ],
 }
