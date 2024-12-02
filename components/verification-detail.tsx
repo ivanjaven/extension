@@ -22,9 +22,9 @@ export function VerificationDetail({
   const [fingerprintImage, setFingerprintImage] = useState<string | null>(
     formData.fingerprint_fmd || null,
   )
-  const [faceRecognitionImage, setFaceRecognitionImage] = useState<string | null>(
-    formData.face_recognition || null,
-  )
+  const [faceRecognitionImage, setFaceRecognitionImage] = useState<
+    string | null
+  >(formData.face_recognition || null)
   const [isCameraOpen, setIsCameraOpen] = useState(false)
   const [isFaceRecognitionOpen, setIsFaceRecognitionOpen] = useState(false)
   const [isCapturingFingerprint, setIsCapturingFingerprint] = useState(false)
@@ -36,7 +36,7 @@ export function VerificationDetail({
 
   const connectWebSocket = useCallback(() => {
     console.log('Attempting to connect WebSocket...')
-    socketRef.current = new WebSocket('ws://localhost:8080/fingerprint-ws')
+    socketRef.current = new WebSocket('wss://192.168.1.6:8080/fingerprint-ws')
 
     socketRef.current.onopen = () => {
       console.log('WebSocket connection established')
@@ -70,7 +70,9 @@ export function VerificationDetail({
 
   const connectFaceWebSocket = useCallback(() => {
     console.log('Attempting to connect Face Recognition WebSocket...')
-    faceSocketRef.current = new WebSocket('ws://localhost:8080/face-recognition-ws')
+    faceSocketRef.current = new WebSocket(
+      'ws://localhost:8080/face-recognition-ws',
+    )
 
     faceSocketRef.current.onopen = () => {
       console.log('Face Recognition WebSocket connection established')
@@ -98,7 +100,9 @@ export function VerificationDetail({
     }
 
     faceSocketRef.current.onclose = () => {
-      console.log('Face Recognition connection failed. Attempting to reconnect...')
+      console.log(
+        'Face Recognition connection failed. Attempting to reconnect...',
+      )
       setTimeout(connectFaceWebSocket, 1000)
     }
   }, [onFormDataChange])
@@ -139,7 +143,10 @@ export function VerificationDetail({
 
   const handleCaptureFaceRecognition = useCallback(() => {
     setIsCapturingFace(true)
-    if (faceSocketRef.current && faceSocketRef.current.readyState === WebSocket.OPEN) {
+    if (
+      faceSocketRef.current &&
+      faceSocketRef.current.readyState === WebSocket.OPEN
+    ) {
       const imageSrc = faceWebcamRef.current?.getScreenshot({
         width: 1024,
         height: 1024,
@@ -173,7 +180,8 @@ export function VerificationDetail({
     }
   }, [])
 
-  const { facialPhoto, fingerprint, faceRecognition } = REGISTRATION_CONFIG.verificationDetails
+  const { facialPhoto, fingerprint, faceRecognition } =
+    REGISTRATION_CONFIG.verificationDetails
 
   return (
     <div className="mx-auto mt-16 max-w-6xl space-y-12 p-3 text-black">
@@ -273,7 +281,9 @@ export function VerificationDetail({
         <div className="space-y-6">
           <div className="text-center">
             <h2 className="text-3xl font-bold">{faceRecognition.title}</h2>
-            <p className="text-base text-gray-800">{faceRecognition.subtitle}</p>
+            <p className="text-base text-gray-800">
+              {faceRecognition.subtitle}
+            </p>
           </div>
           <div className="relative mx-auto flex h-56 w-56 items-center justify-center overflow-hidden rounded-full border-4 border-gray-800 shadow-lg">
             {isFaceRecognitionOpen ? (
@@ -300,9 +310,27 @@ export function VerificationDetail({
             )}
           </div>
           <ul className="list-disc pl-6 text-base text-gray-800">
-            {faceRecognition.instructions.map((instruction: string | number | bigint | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<React.AwaitedReactNode> | null | undefined, index: React.Key | null | undefined) => (
-              <li key={index}>{instruction}</li>
-            ))}
+            {faceRecognition.instructions.map(
+              (
+                instruction:
+                  | string
+                  | number
+                  | bigint
+                  | boolean
+                  | React.ReactElement<
+                      any,
+                      string | React.JSXElementConstructor<any>
+                    >
+                  | Iterable<React.ReactNode>
+                  | React.ReactPortal
+                  | Promise<React.AwaitedReactNode>
+                  | null
+                  | undefined,
+                index: React.Key | null | undefined,
+              ) => (
+                <li key={index}>{instruction}</li>
+              ),
+            )}
           </ul>
           {isFaceRecognitionOpen ? (
             <Button
