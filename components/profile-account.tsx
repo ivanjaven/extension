@@ -208,7 +208,7 @@ export function ProfileAccountUser() {
   }
 
   useEffect(() => {
-    const socket = new WebSocket('ws://localhost:8080/fingerprint-ws')
+    const socket = new WebSocket('ws://192.168.1.6:8080/fingerprint-ws')
 
     socket.onopen = () => {
       console.log('WebSocket connected')

@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
       { status: 200 },
     )
 
+    // Clear cookies
     response.cookies.set('token', '', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

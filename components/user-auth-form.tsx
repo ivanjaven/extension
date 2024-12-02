@@ -45,7 +45,7 @@ export function UserAuthForm() {
 
   // Handle WebSocket connection
   const connectWebSocket = () => {
-    socketRef.current = new WebSocket('ws://localhost:8080/fingerprint-ws')
+    socketRef.current = new WebSocket('ws://192.168.1.6:8080/fingerprint-ws')
 
     socketRef.current.onopen = () => {
       console.log('WebSocket connected')
@@ -70,8 +70,6 @@ export function UserAuthForm() {
 
       if (data.status === 'success' && data.resident) {
         try {
-          // Send exactly the data needed by the API
-          console.log('Sending the data to api...')
           const response = await fetch('/api/auth/fingerprint-login', {
             method: 'POST',
             headers: {
@@ -82,29 +80,40 @@ export function UserAuthForm() {
               authId: data.resident.authId,
               role: data.resident.role,
             }),
+            credentials: 'same-origin',
           })
 
           const responseData = await response.json()
 
-          if (response.ok) {
-            // Handle success exactly like traditional login
-            // The token cookie is automatically set by the response
-            Cookies.set('token', responseData.token) // Set token from response
-            router.push('/')
+          if (responseData.success) {
+            toast.success('Login successful')
+
+            // Clear any existing cookies
+            document.cookie =
+              'token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;'
+            document.cookie =
+              'session_id=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;'
+
+            // Wait for cookies to be set
+            await new Promise((resolve) => setTimeout(resolve, 1000))
+
+            // Hard reload to /
+            window.location.href = '/'
           } else {
-            console.error('Login failed:', responseData)
             toast.error(responseData.error || 'Login failed')
           }
         } catch (error) {
           console.error('Login error:', error)
           toast.error('Login failed')
         }
+        setIsFingerprintScanning(false)
       } else if (data.status === 'not_found') {
         toast.error('No matching user found')
+        setIsFingerprintScanning(false)
       } else {
         toast.error(data.message || 'Scan failed')
+        setIsFingerprintScanning(false)
       }
-      setIsFingerprintScanning(false)
     }
   }
 
@@ -145,19 +154,36 @@ export function UserAuthForm() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(data),
+        credentials: 'same-origin',
       })
 
-      if (response.ok) {
-        const { token } = await response.json()
-        Cookies.set('token', token)
-        router.push('/')
+      if (!response.ok) {
+        throw new Error('Login failed')
+      }
+
+      const responseData = await response.json()
+
+      if (responseData.success) {
+        toast.success('Login successful')
+
+        // Clear any existing cookies
+        document.cookie =
+          'token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;'
+        document.cookie =
+          'session_id=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;'
+
+        // Wait for cookies to be set
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+
+        // Hard reload to /
+        window.location.href = '/'
       } else {
         setAttempts((prev) => prev + 1)
         if (attempts + 1 >= 10) {
           setIsLocked(true)
           toast.error('Too many failed attempts. Account locked for 60 seconds')
         } else {
-          toast.error('Invalid username or password')
+          toast.error(responseData.error || 'Invalid username or password')
         }
       }
     } catch (error) {
@@ -168,15 +194,15 @@ export function UserAuthForm() {
     }
   }
 
-  const handleFingerprintLogin = () => {
-    if (!isWebSocketConnected) {
-      toast.error('Fingerprint scanner not connected')
-      return
-    }
+  // const handleFingerprintLogin = () => {
+  //   if (!isWebSocketConnected) {
+  //     toast.error('Fingerprint scanner not connected')
+  //     return
+  //   }
 
-    setIsFingerprintScanning(true)
-    socketRef.current?.send('identify')
-  }
+  //   setIsFingerprintScanning(true)
+  //   socketRef.current?.send('identify')
+  // }
 
   const handleStaffFingerprintLogin = () => {
     if (!isWebSocketConnected) {

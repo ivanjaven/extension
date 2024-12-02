@@ -5,15 +5,19 @@ import { APIErrHandler } from '@/lib/api-err-handler'
 import { APILogger } from '@/lib/api-req-logger'
 import { Query } from '@/lib/db-con-helper'
 import { generateToken } from '@/server/services/token-generator'
+import {
+  createSession,
+  getActiveSession,
+} from '@/server/services/session-manager'
 
 export async function POST(request: NextRequest) {
   try {
     const { username, authId, role } = await request.json()
+    const userAgent = request.headers.get('user-agent') || 'unknown'
 
     APILogger(request, { username })
 
-    console.log('Starting to veify fingerprint')
-    // Verify the user exists in the database
+    // Find user
     const users = await Query({
       query:
         'SELECT * FROM auth WHERE auth_id = ? AND username = ? AND role = ?',
@@ -21,41 +25,53 @@ export async function POST(request: NextRequest) {
     })
 
     if (users.length === 0) {
-      return APIResponse({ error: 'User not found' }, 404)
+      return APIResponse({ error: 'Invalid credentials' }, 401)
     }
 
-    console.log('Starting to verify fingerprint')
-    const user = users[0]
+    const foundUser = users[0]
 
-    // Generate JWT token exactly like traditional login
+    // Generate token
     const token = await generateToken({
-      auth_id: user.auth_id,
-      username: user.username,
-      role: user.role,
+      auth_id: foundUser.auth_id,
+      username: foundUser.username,
+      role: foundUser.role,
     })
 
-    console.log('Before creating response')
+    // Create session
+    const session_id = await createSession({
+      auth_id: foundUser.auth_id,
+      token: token,
+      device_info: userAgent,
+    })
 
-    // Create response exactly like traditional login
-    const response = NextResponse.json(
+    // Create response with cookies
+    const response = new NextResponse(
+      JSON.stringify({
+        success: true,
+        username: foundUser.username,
+        auth_id: foundUser.auth_id,
+        role: foundUser.role,
+      }),
       {
-        token, // Include token in response body
-        username: user.username,
-        auth_id: user.auth_id,
-        role: user.role,
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
       },
-      { status: 200 },
     )
 
-    // Set cookie exactly like traditional login
-    response.cookies.set('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+    // Set cookies with appropriate options
+    const cookieOptions = {
       path: '/',
-    })
+      httpOnly: true,
+      secure: false, // Set to true in production
+      sameSite: 'lax' as const,
+      maxAge: 24 * 60 * 60, // 24 hours in seconds
+    }
 
-    console.log('Response created, returnin...')
+    response.cookies.set('token', token, cookieOptions)
+    response.cookies.set('session_id', session_id, cookieOptions)
+
     return response
   } catch (error: any) {
     console.error('Authentication error:', error)

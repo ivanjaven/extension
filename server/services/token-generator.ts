@@ -1,29 +1,66 @@
+// server/services/token-generator.ts
 import { jwtVerify, SignJWT } from 'jose'
 
-const JWT_SECRET =
-  process.env.JWT_SECRET ?? '@#kdfjfKJ)_(2ldjwf;Qs;AAk2*(@F;233Abos'
-
-interface Payload {
+// Extending JWTPayload to include our custom fields
+interface JWTCustomPayload {
   [key: string]: any
+  auth_id: number
+  username: string
+  role: string
+  iat?: number
+  exp?: number
 }
 
-export async function generateToken(payload: Payload): Promise<string> {
-  return new SignJWT(payload)
-    .setProtectedHeader({ alg: 'HS256' })
-    .setExpirationTime('1d')
-    .sign(new TextEncoder().encode(JWT_SECRET))
-}
+export async function generateToken(
+  payload: JWTCustomPayload,
+): Promise<string> {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is not defined in environment variables')
+  }
 
-export async function verifyToken(token: string): Promise<Payload | null> {
+  // Create JWT with custom payload
   try {
+    const token = await new SignJWT({ ...payload })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('24h')
+      .sign(new TextEncoder().encode(process.env.JWT_SECRET))
+
+    return token
+  } catch (error) {
+    console.error('Token generation failed:', error)
+    throw new Error('Failed to generate token')
+  }
+}
+
+export async function verifyToken(
+  token: string,
+): Promise<JWTCustomPayload | null> {
+  try {
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET is not defined in environment variables')
+    }
+
     const { payload } = await jwtVerify(
       token,
-      new TextEncoder().encode(JWT_SECRET),
+      new TextEncoder().encode(process.env.JWT_SECRET),
     )
-    console.log(`Payload ${payload}`)
-    return payload as Payload
+
+    // Type assertion after validation
+    const customPayload = payload as JWTCustomPayload
+
+    // Verify required fields exist
+    if (
+      !customPayload.auth_id ||
+      !customPayload.username ||
+      !customPayload.role
+    ) {
+      throw new Error('Invalid token payload structure')
+    }
+
+    return customPayload
   } catch (error) {
-    console.error('JWT verification failed:', error)
+    console.error('Token verification failed:', error)
     return null
   }
 }

@@ -56,7 +56,7 @@ export default function GenerateDocument() {
 
   useEffect(() => {
     const connectWebSocket = () => {
-      socketRef.current = new WebSocket('ws://localhost:8080/fingerprint-ws')
+      socketRef.current = new WebSocket('ws://192.168.1.6:8080/fingerprint-ws')
 
       socketRef.current.onopen = () => {
         console.log('WebSocket connection established')

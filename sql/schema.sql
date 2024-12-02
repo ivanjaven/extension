@@ -359,6 +359,19 @@ CREATE TABLE IF NOT EXISTS auth (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
+CREATE TABLE IF NOT EXISTS sessions (
+    session_id VARCHAR(36) PRIMARY KEY,
+    auth_id BIGINT UNSIGNED NOT NULL,
+    token VARCHAR(255) NOT NULL,
+    device_info TEXT,
+    last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY fk_session_auth (auth_id) REFERENCES auth(auth_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    INDEX idx_auth_id (auth_id),
+    INDEX idx_last_active (last_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
 -- =============================================
 -- Insert dummy data
 -- =============================================

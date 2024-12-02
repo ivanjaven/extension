@@ -18,28 +18,17 @@ export async function POST(request: NextRequest) {
 
     APILogger(request, { username })
 
+    // Find user
     const users = await Query({
       query: 'SELECT * FROM auth WHERE username = ?',
       values: [username],
     })
 
     if (users.length === 0) {
-      return APIResponse({ error: 'User not found' }, 404)
+      return APIResponse({ error: 'Invalid credentials' }, 401)
     }
 
-    // Check for existing active session
-    const existingSession = await getActiveSession(users[0].auth_id)
-    if (existingSession) {
-      return APIResponse(
-        {
-          error: 'Account is already logged in on another device',
-          isActiveSession: true,
-        },
-        403,
-      )
-    }
-
-    // Find user with matching password
+    // Verify password
     let foundUser = null
     for (const user of users) {
       const passwordMatch = await compare(password, user.password)
@@ -53,55 +42,55 @@ export async function POST(request: NextRequest) {
       return APIResponse({ error: 'Invalid credentials' }, 401)
     }
 
-    // Generate token and create session
+    // Generate token
     const token = await generateToken({
       auth_id: foundUser.auth_id,
       username: foundUser.username,
       role: foundUser.role,
     })
 
+    // Create session
     const session_id = await createSession({
       auth_id: foundUser.auth_id,
       token: token,
       device_info: userAgent,
     })
 
-    const response = NextResponse.json(
-      {
+    // Create response with cookies
+    const response = new NextResponse(
+      JSON.stringify({
+        success: true,
         username: foundUser.username,
         auth_id: foundUser.auth_id,
         role: foundUser.role,
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
       },
-      { status: 200 },
     )
 
-    // Set tokens in cookies
-    response.cookies.set('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+    // Set cookies with appropriate options
+    const cookieOptions = {
       path: '/',
-    })
-
-    response.cookies.set('session_id', session_id, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/',
-    })
+      secure: false, // Set to true in production
+      sameSite: 'lax' as const,
+      maxAge: 24 * 60 * 60, // 24 hours in seconds
+    }
 
-    console.log('API authentication successful')
-    console.log(response)
+    response.cookies.set('token', token, cookieOptions)
+    response.cookies.set('session_id', session_id, cookieOptions)
 
     return response
   } catch (error: any) {
     console.error('Authentication error:', error)
-
     const apiError = APIErrHandler(error)
     if (apiError) {
       return apiError
     }
-
     return APIResponse({ error: 'Internal server error' }, 500)
   }
 }
