@@ -49,7 +49,7 @@ export function SearchDialog({ isOpen, onClose, onSelect }: SearchDialogProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="gap-2 p-1 outline-none">
+      <DialogContent className="gap-2 p-2 outline-none">
         <div className="sticky top-0 z-10 flex items-center border-b border-gray-200 bg-white px-4 py-2">
           <Search className="mr-2 h-5 w-5 shrink-0 opacity-50" />
           <Input

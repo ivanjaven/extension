@@ -35,11 +35,11 @@ const SearchSuggestion = ({
   onClick: (id: number) => void
 }) => {
   const [showInitials, setShowInitials] = useState(false)
-  
+
   const getInitials = (name: string) => {
     return name
       .split(' ')
-      .map(word => word[0])
+      .map((word) => word[0])
       .join('')
       .toUpperCase()
       .slice(0, 2)
@@ -98,6 +98,29 @@ export default function HomeDashboard() {
       console.error('Logout error:', error)
     }
   }
+
+  useEffect(() => {
+    const validateSession = async () => {
+      try {
+        const response = await fetch('/api/auth/validate-session', {
+          method: 'POST',
+          credentials: 'include',
+        })
+
+        if (!response.ok) {
+          router.push('/log-in')
+        }
+      } catch (error) {
+        console.error('Session validation error:', error)
+        router.push('/log-in')
+      }
+    }
+
+    const interval = setInterval(validateSession, 60000) // Check every minute
+    validateSession() // Initial check
+
+    return () => clearInterval(interval)
+  }, [router])
 
   useEffect(() => {
     async function validateSession() {
@@ -174,9 +197,10 @@ export default function HomeDashboard() {
   }
 
   // Get quick access features only if the user role exists in userRoles
-  const quickAccessFeatures = userRole !== 'resident' 
-    ? userRoles[userRole as keyof typeof userRoles]?.quickAccessFeatures || []
-    : []
+  const quickAccessFeatures =
+    userRole !== 'resident'
+      ? userRoles[userRole as keyof typeof userRoles]?.quickAccessFeatures || []
+      : []
 
   return (
     <div className="min-h-screen text-black">
@@ -194,29 +218,29 @@ export default function HomeDashboard() {
               <h1 className="text-2xl font-bold">{defaultSettings.name}</h1>
             </div>
             <nav className="flex items-center space-x-6">
-               {userRole !== 'resident' && (
-              <div className="relative">
-                <Input
-                  type="search"
-                  placeholder="Search residents..."
-                  className="w-72 rounded-full border-gray-300 py-2 pl-10 pr-4 focus:border-gray-500 focus:ring focus:ring-gray-200 focus:ring-opacity-50"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-gray-500" />
-                {suggestions.length > 0 && (
-                  <div className="absolute z-10 mt-3 w-full rounded-md border border-gray-300 bg-white shadow-lg">
-                    {suggestions.map((resident) => (
-                      <SearchSuggestion
-                        key={resident.id}
-                        resident={resident}
-                        onClick={handleSuggestionClick}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-                )}
+              {userRole !== 'resident' && (
+                <div className="relative">
+                  <Input
+                    type="search"
+                    placeholder="Search residents..."
+                    className="w-72 rounded-full border-gray-300 py-2 pl-10 pr-4 focus:border-gray-500 focus:ring focus:ring-gray-200 focus:ring-opacity-50"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-gray-500" />
+                  {suggestions.length > 0 && (
+                    <div className="absolute z-10 mt-3 w-full rounded-md border border-gray-300 bg-white shadow-lg">
+                      {suggestions.map((resident) => (
+                        <SearchSuggestion
+                          key={resident.id}
+                          resident={resident}
+                          onClick={handleSuggestionClick}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -260,11 +284,13 @@ export default function HomeDashboard() {
 
       {userRole === 'resident' ? (
         <main className="container mx-auto px-4 py-8">
-           <RequestDocs resident_id={staffInformation?.resident_id ?? 0} />
+          <RequestDocs resident_id={staffInformation?.resident_id ?? 0} />
         </main>
       ) : (
         <main className="container mx-auto px-4 py-8">
-          <h2 className="mb-6 text-2xl font-bold text-gray-900">Quick Access</h2>
+          <h2 className="mb-6 text-2xl font-bold text-gray-900">
+            Quick Access
+          </h2>
           <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {quickAccessFeatures.map(
               (feature: QuickAccessTypedef, index: number) => (
@@ -293,7 +319,7 @@ export default function HomeDashboard() {
                     </CardContent>
                   </Card>
                 </Link>
-              )
+              ),
             )}
           </section>
         </main>
