@@ -1,6 +1,6 @@
 'use client'
 
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import GenerateDocumentForm from '@/components/generate-document-form'
 import { DOCUMENT_CONFIG } from '@/lib/config/DOCUMENT_CONFIG'
@@ -14,6 +14,8 @@ import { fetchUser } from '@/server/queries/fetch-user'
 import ProgressBar from '@/components/ui/progress-bar'
 import { useProgress } from '@/lib/hooks/useProgress'
 import { toast } from 'sonner'
+import { deleteQueueRecord } from '@/server/actions/delete-queue-record'
+import { userInfo } from 'os'
 
 type DocumentType = keyof typeof DOCUMENT_CONFIG.document
 
@@ -40,6 +42,9 @@ export default function GenerateDocument() {
   } | null>(null)
   const socketRef = useRef<WebSocket | null>(null)
   const [isIdentifying, setIsIdentifying] = useState(false)
+  const searchParams = useSearchParams()
+  const resident_id = searchParams.get('resident_id')
+  const queue_id = searchParams.get('queue_id')
 
   useEffect(() => {
     if (type) {
@@ -105,6 +110,29 @@ export default function GenerateDocument() {
     }
   }, [])
 
+  useEffect(() => {
+    // Auto-fill user information if resident_id is present
+    const loadUserInfo = async () => {
+      if (resident_id) {
+        try {
+          const user = await fetchUser(Number(resident_id))
+          const userInfo = user[0]
+          setIdentifiedUser({
+            residentId: Number(resident_id),
+            fullName: `${userInfo.first_name} ${userInfo.last_name}`,
+            imageBase64: userInfo.image_base64,
+            purok: Number(userInfo.street_id),
+          })
+        } catch (error) {
+          console.error('Error loading user info:', error)
+          toast.error('Failed to load user information')
+        }
+      }
+    }
+
+    loadUserInfo()
+  }, [resident_id])
+
   const handleIdentify = () => {
     setIsIdentifying(true)
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
@@ -133,6 +161,18 @@ export default function GenerateDocument() {
       setIsLoading(true)
       resetProgress()
       updateProgress(10) // Start progress
+
+      // Add queue deletion if queue_id exists
+      if (queue_id) {
+        try {
+          const deleteResult = await deleteQueueRecord(Number(queue_id))
+          if (deleteResult.success) {
+            console.log('Queue record deleted successfully')
+          }
+        } catch (error) {
+          console.error('Failed to delete queue record:', error)
+        }
+      }
 
       // Get values from fields
       const priceField = config.fields.find(

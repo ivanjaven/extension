@@ -17,6 +17,7 @@ import { FingerprintIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Cookies from 'js-cookie'
 import { toast } from 'sonner'
+import { setTimeout } from 'timers'
 
 const formSchema = z.object({
   username: z
@@ -42,10 +43,9 @@ export function UserAuthForm() {
   const form = useForm<UserFormValue>({
     resolver: zodResolver(formSchema),
   })
-
   // Handle WebSocket connection
   const connectWebSocket = () => {
-    socketRef.current = new WebSocket('wss://192.168.1.6:8080/fingerprint-ws')
+    socketRef.current = new WebSocket('ws://192.168.1.6:8080/fingerprint-ws')
 
     socketRef.current.onopen = () => {
       console.log('WebSocket connected')

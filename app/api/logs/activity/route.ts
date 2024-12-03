@@ -11,9 +11,9 @@ export async function GET(request: NextRequest) {
 
     // Extract query parameters for pagination
     const searchParams = request.nextUrl.searchParams
-    const page = parseInt(searchParams.get('page') || '1', 10) // Current page number
-    const limit = parseInt(searchParams.get('limit') || '25', 10) // Number of logs per page
-    const offset = (page - 1) * limit // Calculate offset for pagination
+    const page = parseInt(searchParams.get('page') || '1', 10)
+    const limit = parseInt(searchParams.get('limit') || '25', 10)
+    const offset = (page - 1) * limit
 
     // Fetch data from the database using a complex query
     const logs = await Query({
@@ -28,14 +28,22 @@ export async function GET(request: NextRequest) {
           UNION ALL
 
           SELECT
-            CASE document_title
-              WHEN 'Barangay Business Clearance' THEN 'Bus. Clearance'
-              WHEN 'Barangay Clearance' THEN 'Brgy. Clearance'
-              WHEN 'Certificate of Indigency' THEN 'Indigency Cert.'
-              WHEN 'Certificate of Residency' THEN 'Residency Cert.'
+            CASE
+              WHEN document_title = 'Barangay Business Clearance' THEN 'Bus. Clearance'
+              WHEN document_title = 'Barangay Clearance' THEN 'Brgy. Clearance'
+              WHEN document_title = 'Certificate of Indigency' THEN 'Indigency Cert.'
+              WHEN document_title = 'Certificate of Residency' THEN 'Residency Cert.'
               ELSE LEFT(document_title, 15)
             END AS event_label,
-            CONCAT(document_title, ' issued to ', r.full_name, ' by ', d.issued_by, ' - A fee of ₱', FORMAT(d.price, 2), ' was charged.') AS event_description,
+            CONCAT(
+              document_title,
+              ' issued to ',
+              r.full_name,
+              ' by ',
+              d.issued_by,
+              ' - A fee of ₱',
+              FORMAT(d.price, 2)
+            ) AS event_description,
             d.created_at
           FROM documents d
           JOIN residents r ON d.resident_id = r.resident_id
@@ -60,12 +68,10 @@ export async function GET(request: NextRequest) {
     return APIResponse({ data: logs }, 200)
   } catch (error: any) {
     console.error('Database query failed:', error)
-
     const apiError = APIErrHandler(error)
     if (apiError) {
       return apiError
     }
-
     return APIResponse({ error: 'Internal server error' }, 500)
   }
 }

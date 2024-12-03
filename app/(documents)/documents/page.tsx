@@ -50,7 +50,7 @@ export default function DocumentPage() {
   const renderActivityItem = useCallback(
     (activity: queueTypedef, index: number) => (
       <Link
-        href={getDocumentLink(activity.document)}
+        href={`${getDocumentLink(activity.document)}?resident_id=${activity.resident_id}&queue_id=${activity.id}`}
         key={activity.id}
         className="flex items-center justify-between rounded-lg border border-gray-200 p-4 md:p-6 lg:p-8"
       >
