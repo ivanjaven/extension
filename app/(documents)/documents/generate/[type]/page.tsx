@@ -17,6 +17,8 @@ import { toast } from 'sonner'
 import { deleteQueueRecord } from '@/server/actions/delete-queue-record'
 import { fetchUserReport } from '@/server/queries/fetch-user-report'
 import { config } from 'process'
+import { fetchStaff } from '@/server/queries/fetch-staff-data'
+import { StaffInformationTypedef } from '@/lib/typedef/staff-information-typedef'
 
 type DocumentType = keyof typeof DOCUMENT_CONFIG.document
 
@@ -26,6 +28,14 @@ type IdentifiedUser = {
   street: string
   imageBase64: string
 } | null
+
+type AssistanceTypes = {
+  burial: string
+  education: string
+  medical: string
+  financial: string
+  others: string
+}
 
 export default function GenerateDocument() {
   const params = useParams()
@@ -46,6 +56,8 @@ export default function GenerateDocument() {
   const searchParams = useSearchParams()
   const resident_id = searchParams.get('resident_id')
   const queue_id = searchParams.get('queue_id')
+  const [staffInformation, setStaffInformation] =
+    useState<StaffInformationTypedef | null>(null)
 
   useEffect(() => {
     if (type) {
@@ -59,6 +71,33 @@ export default function GenerateDocument() {
       }
     }
   }, [type])
+
+  useEffect(() => {
+    async function getStaffInfo() {
+      try {
+        const response = await fetch('/api/auth/validate', {
+          method: 'GET',
+          credentials: 'include',
+        })
+
+        if (!response.ok) {
+          throw new Error('Authentication failed')
+        }
+        const data = await response.json()
+
+        // Fetch and set staff information
+        const staffData = await fetchStaff(data.auth_id)
+        if (staffData) {
+          setStaffInformation(staffData)
+        }
+      } catch (error) {
+        console.error('Staff validation error:', error)
+        toast.error('Authentication failed')
+      }
+    }
+
+    getStaffInfo()
+  }, [])
 
   useEffect(() => {
     const connectWebSocket = () => {
@@ -158,10 +197,15 @@ export default function GenerateDocument() {
       toast.error('Please identify the user first')
       return
     }
+    if (!staffInformation) {
+      toast.error('Staff authentication required')
+      return
+    }
+
     try {
       setIsLoading(true)
       resetProgress()
-      updateProgress(10) // Start progress
+      updateProgress(10)
 
       // Add queue deletion if queue_id exists
       if (queue_id) {
@@ -179,7 +223,7 @@ export default function GenerateDocument() {
       const priceField = config.fields.find(
         (field: { name: string }) => field.name.toLowerCase() === 'price',
       )
-      const priceValue = priceField ? parseFloat(data[priceField.name]) : 0 // for saving price in the database
+      const priceValue = priceField ? parseFloat(data[priceField.name]) : 0
 
       const businessNameField = config.fields.find(
         (field: { name: string }) =>
@@ -195,6 +239,26 @@ export default function GenerateDocument() {
       const user = await fetchUserReport(identifiedUser.residentId)
       const userInfo = user[0]
 
+      // Add the assistance type handling
+      const assistanceType: AssistanceTypes = {
+        burial: ' ',
+        education: ' ',
+        medical: ' ',
+        financial: ' ',
+        others: ' ',
+      }
+
+      // Set the selected purpose
+      if (data.Purpose) {
+        const key = data.Purpose.toLowerCase().replace(
+          ' assistance',
+          '',
+        ) as keyof AssistanceTypes
+        if (key in assistanceType) {
+          assistanceType[key] = '/'
+        }
+      }
+
       const requiredData = {
         surname: userInfo.last_name,
         firstName: userInfo.first_name,
@@ -205,11 +269,8 @@ export default function GenerateDocument() {
         businessName: businessName,
         template: config.path,
         reason: reason,
-        burial: data['Burial Assistance'] || ' ',
-        education: data['Educational Assistance'] || ' ',
-        medical: data['Medical Assistance'] || ' ',
-        financial: data['Financial Assistance'] || ' ',
-        others: data['Others'] || ' ',
+        Purpose: data.Purpose || '',
+        ...assistanceType,
       }
 
       updateProgress(20)
@@ -218,7 +279,7 @@ export default function GenerateDocument() {
         document_title: config.name as DocumentTitle,
         resident_id: identifiedUser.residentId,
         required_fields: data,
-        issued_by: 'Secretary Kim', // placeholder for now
+        issued_by: `${staffInformation.role} ${staffInformation.full_name}`,
         price: priceValue,
       }
 
@@ -227,14 +288,12 @@ export default function GenerateDocument() {
       const result = await insertDocumentIssuanceRecord(documentData)
       console.log('Document issuance record inserted:', result)
 
-      // Generate and print PDF using the generateDocument function
       updateProgress(70)
       const blob = await generateDocument(requiredData)
       updateProgress(90)
 
       const url = window.URL.createObjectURL(blob)
 
-      // Open PDF in a popup window
       const popupWidth = 900
       const popupHeight = 800
       const left = (window.screen.width - popupWidth) / 2
@@ -254,7 +313,6 @@ export default function GenerateDocument() {
         alert('Please allow pop-ups to view and print the certificate.')
       }
 
-      // Simulate a smooth progress to 100%
       const smoothProgress = setInterval(() => {
         updateProgress((prev) => {
           if (prev >= 99) {

@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
           day: 'numeric',
           year: 'numeric',
         }),
-        // Add checkbox data
+        purpose: data.Purpose || '',
         burial: data.burial || ' ',
         education: data.education || ' ',
         medical: data.medical || ' ',

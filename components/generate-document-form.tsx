@@ -10,6 +10,15 @@ import { SearchDialog } from './search-dialog'
 import { SearchSuggestionTypedef } from '@/lib/typedef/search-suggestion-typedef'
 import { fetchUser } from '@/server/queries/fetch-user'
 import { fetchUserReport } from '@/server/queries/fetch-user-report'
+import {
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  Select,
+} from '@radix-ui/react-select'
+import { CustomSelectField } from './custom-select-field-2'
+import { SimpleDropdown } from './ui/simple-dropdown'
 
 interface Field {
   name: string
@@ -203,11 +212,21 @@ const GenerateDocumentForm: React.FC<GenerateDocumentFormProps> = ({
               <div key={field.name} className="flex flex-col">
                 <label
                   htmlFor={field.name}
-                  className="opacity-700 mb-2 text-sm font-medium text-gray-700 dark:text-gray-800"
+                  className="mb-2 text-sm font-medium text-gray-700"
                 >
                   {field.label}
                 </label>
-                {field.type === 'checkbox' && field.options ? (
+                {field.type === 'select' && field.options ? (
+                  <SimpleDropdown
+                    options={field.options}
+                    placeholder={`Select ${field.label}`}
+                    value={formData[field.name] || ''}
+                    onChange={(value) =>
+                      setFormData((prev) => ({ ...prev, [field.name]: value }))
+                    }
+                    disabled={!field.editable || !identifiedUser}
+                  />
+                ) : field.type === 'checkbox' && field.options ? (
                   <div className="space-y-2">
                     {field.options.map((option) => (
                       <div key={option} className="flex items-center space-x-2">
