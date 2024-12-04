@@ -27,6 +27,8 @@ export async function POST(req: NextRequest) {
     console.log('Received data:', data)
 
     const today = new Date()
+    const dueDate = new Date(today)
+    dueDate.setFullYear(dueDate.getFullYear() + 1)
     const fullName = `${data.firstName} ${data.surname}`.trim()
     const monthNamesShort = [
       'Jan',
@@ -71,7 +73,11 @@ export async function POST(req: NextRequest) {
         year: today.getFullYear().toString(),
         businessName: data.businessName || ' ',
         address: data.street_id,
-        dueDate: `December 31, ${today.getFullYear().toString()}`,
+        dueDate: dueDate.toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+        }),
         // Add checkbox data
         burial: data.burial || ' ',
         education: data.education || ' ',
