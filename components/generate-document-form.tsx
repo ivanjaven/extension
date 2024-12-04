@@ -9,6 +9,7 @@ import { Fingerprint } from 'lucide-react'
 import { SearchDialog } from './search-dialog'
 import { SearchSuggestionTypedef } from '@/lib/typedef/search-suggestion-typedef'
 import { fetchUser } from '@/server/queries/fetch-user'
+import { fetchUserReport } from '@/server/queries/fetch-user-report'
 
 interface Field {
   name: string
@@ -24,16 +25,16 @@ interface GenerateDocumentFormProps {
   onIdentify: () => void
   isIdentifying: boolean
   identifiedUser: {
+    street_name: string
     residentId: number
     fullName: string
-    purok: number
     imageBase64: string
   } | null
   setIdentifiedUser: (
     user: {
       residentId: number
       fullName: string
-      purok: number
+      street_name: string
       imageBase64: string
     } | null,
   ) => void
@@ -78,7 +79,7 @@ const GenerateDocumentForm: React.FC<GenerateDocumentFormProps> = ({
       setFormData((prev) => ({
         ...prev,
         'Full Name': identifiedUser.fullName,
-        Purok: identifiedUser.purok,
+        Street: identifiedUser.street_name,
       }))
     }
   }, [identifiedUser])
@@ -95,7 +96,6 @@ const GenerateDocumentForm: React.FC<GenerateDocumentFormProps> = ({
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
   }, [])
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target
     setFormData((prev) => ({
@@ -118,14 +118,14 @@ const GenerateDocumentForm: React.FC<GenerateDocumentFormProps> = ({
 
   const handleUserSelect = async (suggestion: SearchSuggestionTypedef) => {
     try {
-      const userData = await fetchUser(suggestion.id)
+      const userData = await fetchUserReport(suggestion.id)
       if (userData && userData[0]) {
         const user = userData[0]
         setFormData((prev) => ({
           ...prev,
           'Full Name': suggestion.name,
           Price: formData['Price'] || '', // Preserve existing price if any
-          Purok: user.street_id,
+          Street: user.street_name,
         }))
 
         // If there's an imageBase64 field, update it
@@ -133,7 +133,7 @@ const GenerateDocumentForm: React.FC<GenerateDocumentFormProps> = ({
           const fakeIdentifiedUser = {
             residentId: suggestion.id,
             fullName: suggestion.name,
-            purok: Number(user.street_id),
+            street_name: user.street_name,
             imageBase64: user.image_base64,
           }
           // Update identifiedUser through props

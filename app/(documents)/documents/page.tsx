@@ -58,7 +58,7 @@ export default function DocumentPage() {
           <p className="text-sm font-medium text-black">{activity.date}</p>
           <p className="text-sm text-gray-600">
             {activity.name} has requested {activity.document} – Queue #
-            {activity.id}
+            {index + 1}
           </p>
         </div>
         <div className="flex items-center space-x-4">

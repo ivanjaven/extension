@@ -260,6 +260,11 @@ export default function HomeDashboard() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>My Settings</DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  {userRole !== 'resident' && (
+                    <Link href="/activity-logs">
+                      <DropdownMenuItem>Activity Logs</DropdownMenuItem>
+                    </Link>
+                  )}
                   <Link href="/profile-account">
                     <DropdownMenuItem>Profile Account</DropdownMenuItem>
                   </Link>

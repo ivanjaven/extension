@@ -15,14 +15,15 @@ import ProgressBar from '@/components/ui/progress-bar'
 import { useProgress } from '@/lib/hooks/useProgress'
 import { toast } from 'sonner'
 import { deleteQueueRecord } from '@/server/actions/delete-queue-record'
-import { userInfo } from 'os'
+import { fetchUserReport } from '@/server/queries/fetch-user-report'
+import { config } from 'process'
 
 type DocumentType = keyof typeof DOCUMENT_CONFIG.document
 
 type IdentifiedUser = {
   residentId: number
   fullName: string
-  purok: number
+  street: string
   imageBase64: string
 } | null
 
@@ -38,7 +39,7 @@ export default function GenerateDocument() {
     residentId: number
     fullName: string
     imageBase64: string
-    purok: number
+    street_name: string
   } | null>(null)
   const socketRef = useRef<WebSocket | null>(null)
   const [isIdentifying, setIsIdentifying] = useState(false)
@@ -61,7 +62,7 @@ export default function GenerateDocument() {
 
   useEffect(() => {
     const connectWebSocket = () => {
-      socketRef.current = new WebSocket('ws://192.168.1.6:8080/fingerprint-ws')
+      socketRef.current = new WebSocket('ws://localhost:8080/fingerprint-ws')
 
       socketRef.current.onopen = () => {
         console.log('WebSocket connection established')
@@ -71,13 +72,13 @@ export default function GenerateDocument() {
         console.log('WebSocket message received:', event.data)
         const data = JSON.parse(event.data)
         if (data.status === 'success' && data.resident) {
-          const user = await fetchUser(data.resident.residentId)
+          const user = await fetchUserReport(data.resident.residentId)
           const userInfo = user[0]
           setIdentifiedUser({
             residentId: data.resident.residentId,
             fullName: data.resident.fullName,
             imageBase64: userInfo.image_base64,
-            purok: Number(userInfo.street_id),
+            street_name: userInfo.street_name,
           })
           setIsIdentifying(false)
           toast.success('User identified successfully')
@@ -115,13 +116,13 @@ export default function GenerateDocument() {
     const loadUserInfo = async () => {
       if (resident_id) {
         try {
-          const user = await fetchUser(Number(resident_id))
+          const user = await fetchUserReport(Number(resident_id))
           const userInfo = user[0]
           setIdentifiedUser({
             residentId: Number(resident_id),
             fullName: `${userInfo.first_name} ${userInfo.last_name}`,
             imageBase64: userInfo.image_base64,
-            purok: Number(userInfo.street_id),
+            street_name: userInfo.street_name,
           })
         } catch (error) {
           console.error('Error loading user info:', error)
@@ -191,7 +192,7 @@ export default function GenerateDocument() {
       )
       const reason = reasonField ? data[reasonField.name] : ''
 
-      const user = await fetchUser(identifiedUser.residentId)
+      const user = await fetchUserReport(identifiedUser.residentId)
       const userInfo = user[0]
 
       const requiredData = {
@@ -200,7 +201,7 @@ export default function GenerateDocument() {
         middleName: userInfo.middle_name,
         price: priceValue,
         image: identifiedUser.imageBase64,
-        purok: userInfo.street_id,
+        purok: userInfo.street_name,
         businessName: businessName,
         template: config.path,
         reason: reason,

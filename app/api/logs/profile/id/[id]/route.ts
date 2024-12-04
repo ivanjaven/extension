@@ -42,20 +42,6 @@ export async function GET(
           FROM documents d
           JOIN residents r ON d.resident_id = r.resident_id
           WHERE d.resident_id = ?
-
-          UNION ALL
-
-          SELECT
-            CASE
-              WHEN ROW_NUMBER() OVER (PARTITION BY in_narr.case_number_id ORDER BY in_narr.created_at) = 1 THEN 'New Incident'
-              ELSE 'Incident Update'
-            END AS event_label,
-            CONCAT('Case #', in_narr.case_number_id, ' - ', ir.title, ': ', LEFT(in_narr.narrative, 120), '...') AS event_description,
-            in_narr.created_at
-          FROM incident_narratives in_narr
-          JOIN incident_reports ir ON in_narr.case_number_id = ir.case_number
-          JOIN incident_participants ip ON ir.case_number = ip.case_number_id
-          WHERE ip.resident_id = ?
         )
         SELECT
           event_label AS label,
@@ -65,7 +51,7 @@ export async function GET(
         ORDER BY created_at DESC
         LIMIT ? OFFSET ?
       `,
-      values: [id, id, limit, offset],
+      values: [id, limit, offset],
     })
 
     // Check if no data was found
