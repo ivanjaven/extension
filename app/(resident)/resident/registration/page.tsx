@@ -24,6 +24,7 @@ const initialFormData: RegistrationTypedef = {
   houseNumber: '',
   image_base64: '',
   middlename: '',
+  face_descriptor: '',
   mobile: '',
   face_recognition:'',
   username:'',

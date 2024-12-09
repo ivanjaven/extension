@@ -30,6 +30,10 @@ const formSchema = z.object({
 
 type UserFormValue = z.infer<typeof formSchema>
 
+interface UserAuthFormProps {
+  onSuccess: () => void;
+}
+
 export function UserAuthForm() {
   const [attempts, setAttempts] = useState(0)
   const [isLocked, setIsLocked] = useState(false)
@@ -79,6 +83,7 @@ export function UserAuthForm() {
               username: data.resident.username,
               authId: data.resident.authId,
               role: data.resident.role,
+              
             }),
             credentials: 'same-origin',
           })

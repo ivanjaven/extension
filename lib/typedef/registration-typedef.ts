@@ -4,6 +4,7 @@ export interface RegistrationTypedef {
   day: string
   email: string
   fingerprint_fmd: string
+  face_descriptor:string
   gender: string
   houseNumber: string
   image_base64: string

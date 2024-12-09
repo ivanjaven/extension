@@ -216,6 +216,7 @@ CREATE TABLE IF NOT EXISTS residents (
     middle_name VARCHAR(100),
     gender ENUM('Male', 'Female', 'Other') NOT NULL,
     image_base64 LONGTEXT NOT NULL,
+    face_descriptor TEXT NOT NULL,
     fingerprint_base64 LONGTEXT,
     date_of_birth DATE NOT NULL,
     civil_status ENUM('Single', 'Married', 'Divorced', 'Widowed') NOT NULL,
@@ -778,8 +779,8 @@ VALUES
 
 
 -- Insert into residents
-INSERT INTO residents (full_name, first_name, last_name, middle_name, gender, image_base64, fingerprint_base64, date_of_birth, civil_status, occupation_id, nationality_id, religion_id, benefit_id, is_archived)
-VALUES ('Shaira Marie T. Curiano', 'Shaira Marie', 'Curiano', 'T', 'Male', 'base64encodedimage', 'base64encodedfingerprint', '2006-01-01', 'Single', 1, 1, 1, 1, FALSE);
+INSERT INTO residents (full_name, first_name, last_name, middle_name, gender, image_base64, face_descriptor, fingerprint_base64, date_of_birth, civil_status, occupation_id, nationality_id, religion_id, benefit_id, is_archived)
+VALUES ('Shaira Marie T. Curiano', 'Shaira Marie', 'Curiano', 'T', 'Male', 'base64encodedimage', 'test', 'base64encodedfingerprint', '2006-01-01', 'Single', 1, 1, 1, 1, FALSE);
 
 -- Insert into addresses
 INSERT INTO addresses (resident_id, house_number, street_id, barangay_id, municipality_id, province_id, postal_code)

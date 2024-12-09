@@ -10,9 +10,14 @@ export async function middleware(request: NextRequest) {
   const publicPaths = [
     '/log-in',
     '/api/auth/log-in',
+    '/api/auth/face-log-in',
     '/api/auth/fingerprint-login',
     '/terms',
     '/privacy',
+    // Add paths related to model loading
+    '/_next/static', 
+    '/models', 
+    '/public/models'
   ]
 
   console.log('Middleware path:', pathname)
@@ -23,7 +28,7 @@ export async function middleware(request: NextRequest) {
       : 'missing',
   })
 
-  if (publicPaths.includes(pathname)) {
+  if (publicPaths.some(path => pathname.startsWith(path))) {
     return NextResponse.next()
   }
 
